@@ -1,0 +1,17 @@
+name: Verify anonymous installer download
+on:
+  push:
+    paths: ['.github/workflows/verify-download.yml']
+  workflow_dispatch:
+permissions: {}
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download without GitHub token and verify every byte
+        run: |
+          curl --fail --location --retry 2 'https://github.com/hello1e3/goat-agent-releases/releases/download/v0.2.0-ci-preview/GOAT-Agent-0.2.0-Windows-x64-Setup.exe' -o setup.exe
+          echo '0f3d94689d9e28c95de77c3afb367c44a3f6647118b493f73c09597300f2ce44  setup.exe' | sha256sum --check
+          stat --format='Downloaded bytes: %s' setup.exe
+          file setup.exe
