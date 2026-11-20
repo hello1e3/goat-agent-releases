@@ -1,0 +1,39 @@
+name: Publish tested Windows preview
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_url:
+        description: Temporary download URL of the tested installer ZIP
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download and verify tested artifact
+        env:
+          ARTIFACT_URL: ${{ inputs.artifact_url }}
+        run: |
+          curl --fail --location --retry 2 "$ARTIFACT_URL" -o installer.zip
+          echo '9a6bf455d4ae171113eea6dce90ded28b951186b1bda88eac0b734a2bb805164  installer.zip' | sha256sum --check
+          unzip installer.zip -d installer
+          mv 'installer/GOAT-Agent-0.2.0-Setup.exe' 'GOAT-Agent-0.2.0-Windows-x64-Setup.exe'
+          sha256sum GOAT-Agent-0.2.0-Windows-x64-Setup.exe > SHA256SUMS.txt
+      - name: Publish preview installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cat > notes.txt <<'NOTES'
+          GOAT Agent 0.2.0 — Windows x64 preview, WPF/Acrylic.
+          
+          This installer was built and tested on GitHub Windows Server 2025 from private source commit fc54de9a3bc47980b259093a29524fc947b0fe29. Tested: installation, DPAPI, real WebView2 page/form, file actions, cancellation, GUI launch, restart, reinstall and uninstall. AI requests used a local test fixture, not a paid provider.
+          
+          IMPORTANT: UNSIGNED preview. Public license activation backend is not deployed. A new installation cannot activate without a server and issued code configured by the publisher. Not ready for commercial sale. Windows 10/11 clean-machine compatibility and real provider keys are not verified. Mac installers are not included.
+          
+          Includes Node and WebView2 runtimes. Windows x64, .NET Framework 4.8 required. SHA256SUMS.txt verifies the downloadable EXE.
+          NOTES
+          gh release create v0.2.0-ci-preview GOAT-Agent-0.2.0-Windows-x64-Setup.exe SHA256SUMS.txt --prerelease --title 'GOAT Agent 0.2.0 — tested Windows preview' --notes-file notes.txt
